@@ -10,9 +10,9 @@ import json
 import urllib
 import urllib2
 
-ZENOSS_INSTANCE = 'http://localhost:8080'
-ZENOSS_USERNAME = 'user1'
-ZENOSS_PASSWORD = '1234'
+ZENOSS_INSTANCE = 'http://ZENOSS-SERVER:8080'
+ZENOSS_USERNAME = 'admin'
+ZENOSS_PASSWORD = 'zenoss'
 
 ROUTERS = { 'MessagingRouter': 'messaging',
             'EventsRouter': 'evconsole',
@@ -24,11 +24,9 @@ ROUTERS = { 'MessagingRouter': 'messaging',
             'DetailNavRouter': 'detailnav',
             'ReportRouter': 'report',
             'MibRouter': 'mib',
-            'ZenPackRouter': 'zenpack',
-            'MaintenanceWindowRouter': 'maintwindow',
-            }
+            'ZenPackRouter': 'zenpack' }
 
-class ZenossAPI():
+class ZenossAPIExample():
     def __init__(self, debug=False):
         """
         Initialize the API connection, log in, and store authentication cookie
@@ -78,34 +76,24 @@ class ZenossAPI():
                                     data=[{'uid': deviceClass,
                                            'params': {} }])['result']
 
-    def get_boundtemplates(self, deviceid):
-        return self._router_request('DeviceRouter', 'getBoundTemplates',
-                                    data=[{'uid': deviceid}])['result']
+    def get_events(self, device=None, component=None, eventClass=None):
+        data = dict(start=0, limit=100, dir='DESC', sort='severity')
+        data['params'] = dict(severity=[5,4,3,2], eventState=[0,1])
 
-    def get_info(self, cmp):
-	data = dict(uid=cmp, keys=None)
-        return self._router_request('DeviceRouter', 'getInfo',
-                                    data=[{ 'uid': cmp,
-                                            'keys': None },
-                                         ])['result']
+        if device: data['params']['device'] = device
+        if component: data['params']['component'] = component
+        if eventClass: data['params']['eventClass'] = eventClass
 
-    def get_components(self, uid):
-	data = dict(uid=uid, meta_type=None, keys=None, start=0, dir='ASC')
-#	data = dict(uid=deviceid)
-        return self._router_request('DeviceRouter', 'getComponents', [data])['result']
+        return self._router_request('EventsRouter', 'query', [data])['result']
 
-#    def get_components(self, uid, meta_type=None, keys=None, start=0, sort='titleOrId', dir='ASC', name=None):
-#        data = dict(uid=uid)
-#        return self._router_request('DeviceRouter', 'getComponents', [data])['result']
+    def add_device(self, deviceName, deviceClass):
+        data = dict(deviceName=deviceName, deviceClass=deviceClass)
+        return self._router_request('DeviceRouter', 'addDevice', [data])
 
-    def get_templates(self, id):
-        data = dict(id=id)
-        return self._router_request('DeviceRouter', 'getTemplates', [data])['result']
+    def create_event_on_device(self, device, severity, summary):
+        if severity not in ('Critical', 'Error', 'Warning', 'Info', 'Debug', 'Clear'):
+            raise Exception('Severity "' + severity +'" is not valid.')
 
-    def get_local_templates(self, query, uid):
-        data = dict(uid=uid, query=query)
-        return self._router_request('DeviceRouter', 'getLocalTemplates', [data])['result']
-
-    def get_thresholds(self, uid, query=''):
-        data = dict(uid=uid)
-        return self._router_request('TemplateRouter', 'getThresholds', [data])['result']
+        data = dict(device=device, summary=summary, severity=severity,
+                    component='', evclasskey='', evclass='')
+        return self._router_request('EventsRouter', 'add_event', [data])
